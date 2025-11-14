@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="utf-8" />
+    <title>A-Frame AR (AR.js - marker)</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://aframe.io/releases/1.5.0/aframe.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/AR-js-org/AR.js/aframe/build/aframe-ar.js"></script>
+    
+    <style>
+      body, html { margin:0; overflow:hidden; }
+      /* CSS para o Painel 2D */
+      #info-panel {
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        z-index: 1000; /* Garante que fique acima da cena AR */
+        background-color: rgba(0, 0, 0, 0.7);
+        color: white;
+        padding: 10px 15px;
+        border-radius: 5px;
+        font-family: Arial, sans-serif;
+        display: none; /* Começa oculto */
+      }
+    </style>
+  </head>
+  <body>
+    
+    <div id="info-panel">
+      Marcador: <span id="marker-status">Procurando...</span>
+    </div>
+    
+    <a-scene embedded arjs>
+      <a-marker id="hiro-marker" preset="hiro">
+        </a-marker>
+      <a-entity camera></a-entity>
+    </a-scene>
+
+    </body>
+</html>
+<script>
+      const marker = document.getElementById('hiro-marker');
+      const infoPanel = document.getElementById('info-panel');
+      const statusText = document.getElementById('marker-status');
+
+      // 1. Quando o marcador é detectado
+      marker.addEventListener('markerFound', function() {
+        console.log('Marcador Hiro Encontrado!');
+        infoPanel.style.display = 'block'; // Mostra o painel
+        statusText.textContent = 'HIRO (DETECTADO)';
+        statusText.style.color = '#4CAF50'; // Verde
+      });
+
+      // 2. Quando o marcador é perdido (sai da vista)
+      marker.addEventListener('markerLost', function() {
+        console.log('Marcador Hiro Perdido!');
+        statusText.textContent = 'Procurando...';
+        statusText.style.color = '#FFC107'; // Amarelo
+        // Opcionalmente, você pode ocultar o painel
+        // infoPanel.style.display = 'none'; 
+      });
+      
+      // 3. Garante que o painel apareça (mesmo que esperando o marcador)
+      document.addEventListener('DOMContentLoaded', function() {
+          infoPanel.style.display = 'block';
+      });
+
+    </script>
+  </body>
+</html>
