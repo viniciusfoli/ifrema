@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A-Frame Hand Tracking</title>
+  <script src="https://aframe.io/releases/1.4.0/aframe.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/hands/hands.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/camera_utils/camera_utils.js"></script>
+  <style>
+    body { margin: 0; overflow: hidden; font-family: Arial, sans-serif; }
+    
+    #status { 
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: #4CAF50; 
+      font-weight: bold;
+      background: rgba(0,0,0,0.8);
+      padding: 10px;
+      border-radius: 5px;
+      z-index: 1000;
+    }
+    
+    #videoPreview {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 999;
+      border: 3px solid #4CAF50;
+      border-radius: 10px;
+      overflow: hidden;
+      display: none;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+    }
+    
+    #webcam {
+      width: 240px;
+      height: 180px;
+      transform: scaleX(-1);
+      display: block;
+    }
+    
+    #startBtn {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 20px 45px;
+      font-size: 22px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 15px;
+      cursor: pointer;
+      z-index: 2000;
+      box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
+      font-weight: bold;
+      transition: all 0.3s ease;
+    }
+    
+    #startBtn:hover { 
+      transform: translate(-50%, -50%) scale(1.05);
+      box-shadow: 0 10px 25px rgba(102, 126, 234, 0.6);
+    }
+    
+    #startBtn.hidden { display: none; }
+    
+    .hand-counter {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      background: rgba(0,0,0,0.8);
+      padding: 10px 20px;
+      border-radius: 8px;
+      color: white;
+      font-size: 14px;
+      z-index: 1000;
+      display: none;
+    }
+  </style>
+</head>
+<body>
+  <p id="status">Pressione Iniciar para começar</p>
+
+  <button id="startBtn">🎥 Iniciar Hand Tracking</button>
+
+  <div id="videoPreview">
+    <video id="webcam" autoplay playsinline></video>
+  </div>
+
+  <div class="hand-counter" id="handCounter">
+    <span id="handCount">Mãos detectadas: 0</span>
+  </div>
+
+  <a-scene 
+    hand-tracking-system
+    background="color: #0f0f1e"
+    renderer="colorManagement: true; antialias: true">
+    
+    <!-- Ambiente -->
+    <a-sky color="#1a1a2e"></a-sky>
+    
+    <!-- Chão com grid -->
+    <a-plane 
+      position="0 0 -4" 
+      rotation="-90 0 0" 
+      width="15" 
+      height="15" 
+      color="#16213e"
+      shadow="receive: true">
+    </a-plane>
+
+    <!-- Luzes -->
+    <a-light type="ambient" intensity="0.5"></a-light>
+    <a-light type="directional" position="3 5 2" intensity="0.8" cast-shadow="true"></a-light>
+    <a-light type="point" position="0 3 -3" intensity="0.6" color="#4ECDC4"></a-light>
+
+    <!-- Objetos Interativos (apenas os 3 da frente) -->
+    <a-entity id="objects">
+      <a-box 
+        position="-2 1.5 -3.5" 
+        rotation="0 45 0" 
+        color="#FF6B6B"
+        shadow="cast: true"
+        class="interactive"
+        data-name="Cubo Vermelho"
+        animation="property: rotation; to: 0 405 0; dur: 4000; loop: true; easing: linear">
+      </a-box>
+
+      <a-sphere 
+        position="0 1.5 -3.5" 
+        radius="0.5" 
+        color="#4ECDC4"
+        shadow="cast: true"
+        class="interactive"
+        data-name="Esfera Azul"
+        animation="property: position; to: 0 2.1 -3.5; dur: 1500; dir: alternate; loop: true">
+      </a-sphere>
+
+      <a-cylinder 
+        position="2 1.5 -3.5" 
+        radius="0.35" 
+        height="1.2" 
+        color="#95E1D3"
+        shadow="cast: true"
+        class="interactive"
+        data-name="Cilindro Verde"
+        animation="property: scale; to: 1.15 1.15 1.15; dur: 1200; dir: alternate; loop: true">
+      </a-cylinder>
+    </a-entity>
+
+    <!-- Marcadores de mãos -->
+    <a-entity id="leftHand" hand-marker="hand: left">
+      <a-sphere 
+        radius="0.08" 
+        color="#FF6B6B"
+        material="emissive: #FF6B6B; emissiveIntensity: 0.5">
+        <a-ring 
+          position="0 0 0.05"
+          radius-inner="0.09" 
+          radius-outer="0.15" 
+          color="#FF6B6B"
+          material="opacity: 0.3; transparent: true"
+          animation="property: scale; to: 1.5 1.5 1.5; dur: 1000; loop: true; dir: alternate">
+        </a-ring>
+      </a-sphere>
+    </a-entity>
+
+    <a-entity id="rightHand" hand-marker="hand: right">
+      <a-sphere 
+        radius="0.08" 
+        color="#4ECDC4"
+        material="emissive: #4ECDC4; emissiveIntensity: 0.5">
+        <a-ring 
+          position="0 0 0.05"
+          radius-inner="0.09" 
+          radius-outer="0.15" 
+          color="#4ECDC4"
+          material="opacity: 0.3; transparent: true"
+          animation="property: scale; to: 1.5 1.5 1.5; dur: 1000; loop: true; dir: alternate">
+        </a-ring>
+      </a-sphere>
+    </a-entity>
+
+    <!-- Título -->
+    <a-text 
+      value="HAND TRACKING" 
+      position="0 3.2 -4" 
+      align="center"
+      color="#FFF"
+      width="6"
+      font="mozillavr">
+    </a-text>
+
+    <a-text 
+      value="Aproxime suas maos dos objetos!" 
+      position="0 2.8 -4" 
+      align="center"
+      color="#4ECDC4"
+      width="5">
+    </a-text>
+
+    <!-- Câmera -->
+    <a-entity id="rig" position="0 1.6 0">
+      <a-camera 
+        look-controls="pointerLockEnabled: false"
+        wasd-controls="acceleration: 20">
+      </a-camera>
+    </a-entity>
+
+  </a-scene>
+
+  <script>
+    // Sistema de Hand Tracking A-Frame
+    AFRAME.registerSystem('hand-tracking-system', {
+      init: function() {
+        this.hands = null;
+        this.camera = null;
+        this.leftHandData = null;
+        this.rightHandData = null;
+        this.interactiveObjects = [];
+        this.lastHitTime = new Map();
+        
+        // Pega objetos interativos
+        setTimeout(() => {
+          const objects = document.querySelectorAll('.interactive');
+          objects.forEach(obj => this.interactiveObjects.push(obj));
+          console.log('📦 Objetos interativos carregados:', this.interactiveObjects.length);
+        }, 1000);
+      },
+
+      async startTracking() {
+        const status = document.getElementById('status');
+        const startBtn = document.getElementById('startBtn');
+        const videoPreview = document.getElementById('videoPreview');
+        const webcam = document.getElementById('webcam');
+        const handCounter = document.getElementById('handCounter');
+
+        try {
+          status.textContent = '🔄 Iniciando câmera...';
+
+          // Configura MediaPipe
+          this.hands = new Hands({
+            locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/hands/${file}`
+          });
+
+          this.hands.setOptions({
+            maxNumHands: 2,
+            modelComplexity: 1,
+            minDetectionConfidence: 0.6,
+            minTrackingConfidence: 0.5
+          });
+
+          this.hands.onResults(this.onResults.bind(this));
+
+          // Inicia câmera
+          const stream = await navigator.mediaDevices.getUserMedia({ 
+            video: { 
+              width: 640, 
+              height: 480,
+              facingMode: 'user'
+            } 
+          });
+          
+          webcam.srcObject = stream;
+          await new Promise(resolve => webcam.onloadedmetadata = resolve);
+
+          this.camera = new Camera(webcam, {
+            onFrame: async () => {
+              await this.hands.send({image: webcam});
+            },
+            width: 640,
+            height: 480
+          });
+
+          this.camera.start();
+          
+          startBtn.classList.add('hidden');
+          videoPreview.style.display = 'block';
+          handCounter.style.display = 'block';
+          status.textContent = '✅ Ativo! Mostre suas mãos 🖐️';
+          
+        } catch (error) {
+          console.error('Erro:', error);
+          status.textContent = '❌ Erro ao acessar câmera';
+          alert('Erro: ' + error.message);
+        }
+      },
+
+      onResults(results) {
+        const handCount = document.getElementById('handCount');
+        
+        if (results.multiHandLandmarks && results.multiHandedness) {
+          handCount.textContent = `Mãos detectadas: ${results.multiHandLandmarks.length}`;
+          
+          this.leftHandData = null;
+          this.rightHandData = null;
+
+          for (let i = 0; i < results.multiHandLandmarks.length; i++) {
+            const landmarks = results.multiHandLandmarks[i];
+            const handedness = results.multiHandedness[i].label;
+            
+            // Usa dedo indicador (landmark 8)
+            const finger = landmarks[8];
+            
+            // Converte para coordenadas 3D
+            const pos = {
+              x: (finger.x - 0.5) * 5,
+              y: -(finger.y - 0.5) * 3.5 + 1.6,
+              z: -3.5 + finger.z * 3
+            };
+            
+            // MediaPipe inverte esquerda/direita por causa do espelho
+            if (handedness === 'Left') {
+              this.rightHandData = pos;
+            } else {
+              this.leftHandData = pos;
+            }
+          }
+          
+          this.checkCollisions();
+        } else {
+          handCount.textContent = 'Mãos detectadas: 0';
+          this.leftHandData = null;
+          this.rightHandData = null;
+        }
+      },
+
+      checkCollisions() {
+        const hands = [this.leftHandData, this.rightHandData].filter(h => h !== null);
+        
+        hands.forEach(handPos => {
+          this.interactiveObjects.forEach(obj => {
+            const objPos = obj.object3D.position;
+            const dx = handPos.x - objPos.x;
+            const dy = handPos.y - objPos.y;
+            const dz = handPos.z - objPos.z;
+            const distance = Math.sqrt(dx*dx + dy*dy + dz*dz);
+            
+            if (distance < 0.8) {
+              const objId = obj.getAttribute('data-name') || 'obj';
+              const now = Date.now();
+              
+              if (!this.lastHitTime.has(objId) || now - this.lastHitTime.get(objId) > 600) {
+                this.hitObject(obj);
+                this.lastHitTime.set(objId, now);
+              }
+            }
+          });
+        });
+      },
+
+      hitObject(obj) {
+        console.log('💥 Tocou:', obj.getAttribute('data-name'));
+        
+        // Efeito de escala
+        obj.setAttribute('scale', '1.5 1.5 1.5');
+        setTimeout(() => obj.setAttribute('scale', '1 1 1'), 250);
+        
+        // Muda cor
+        const colors = ['#FF6B6B', '#4ECDC4', '#95E1D3', '#F38181', '#AA96DA', '#FCBAD3', '#FFD93D', '#6BCF7F'];
+        const newColor = colors[Math.floor(Math.random() * colors.length)];
+        obj.setAttribute('color', newColor);
+        
+        // Rotação extra
+        const currentRot = obj.getAttribute('rotation');
+        obj.setAttribute('rotation', {
+          x: currentRot.x,
+          y: currentRot.y + 90,
+          z: currentRot.z
+        });
+      }
+    });
+
+    // Componente para marcadores de mão
+    AFRAME.registerComponent('hand-marker', {
+      schema: {
+        hand: {type: 'string', default: 'left'}
+      },
+
+      init: function() {
+        this.el.object3D.visible = false;
+      },
+
+      tick: function() {
+        const system = this.el.sceneEl.systems['hand-tracking-system'];
+        const handData = this.data.hand === 'left' ? system.leftHandData : system.rightHandData;
+        
+        if (handData) {
+          this.el.object3D.visible = true;
+          this.el.object3D.position.set(handData.x, handData.y, handData.z);
+        } else {
+          this.el.object3D.visible = false;
+        }
+      }
+    });
+
+    // Inicia ao clicar no botão
+    document.getElementById('startBtn').addEventListener('click', () => {
+      const system = document.querySelector('a-scene').systems['hand-tracking-system'];
+      system.startTracking();
+    });
+  </script>
+</body>
+</html>
